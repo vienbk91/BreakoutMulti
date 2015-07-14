@@ -32,6 +32,8 @@ private:
 
 	void SelectTeamBtnCallback(Ref* pSender , Widget::TouchEventType type , int teamId);
 
+	void checkPlayerConnectEvent(SIOClient* client, const string& data);
+
 };
 
 #endif /* SELECTTEAMSCENE_H_ */

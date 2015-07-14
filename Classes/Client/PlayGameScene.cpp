@@ -7,6 +7,17 @@
 
 #include "PlayGameScene.h"
 
+
+// Su dung cho socket.io
+#include "json/rapidjson.h"
+#include "json/document.h"
+#include "json/writer.h"
+#include "json/stringbuffer.h"
+
+
+#define WIDTH_OFFSET 5
+#define HEIGHT_OFFSET 100
+
 Scene* PlayGame::createScene()
 {
 	// Khoi tao scene voi thuoc tinh vat ly
@@ -57,6 +68,10 @@ bool PlayGame::init()
 	contactListener->onContactBegin = CC_CALLBACK_1(PlayGame::onContactBegin, this);
 	_eventDispatcher->addEventListenerWithSceneGraphPriority(contactListener, this);
 
+
+	this->scheduleUpdate();
+
+
 	return true;
 }
 
@@ -71,24 +86,53 @@ void PlayGame::createContent()
 	_ball->setPosition(Vec2(_visibleSize.width/2 , _visibleSize.height/2));
 
 	// Create paddle
-	_paddle1 = createPaddle();
+	
 
 	float offset;
 
 	if (CC_TARGET_PLATFORM == CC_PLATFORM_WIN32)
 	{
-		offset = 50;
+		offset = 30;
 	}
 	else if (CC_TARGET_PLATFORM == CC_PLATFORM_ANDROID)
 	{
 		offset = 60;
 	}
 
-	_paddle1->setPosition(Vec2(_visibleSize.width / 2, offset));
+	_paddle1 = createPaddle();
+	_paddle1->setPosition(Vec2(_visibleSize.width / 2, offset + HEIGHT_OFFSET  ));
 	_paddle2 = createPaddle();
-	_paddle2->setPosition(Vec2(_visibleSize.width / 2, _visibleSize.height - offset ));
+	_paddle2->setPosition(Vec2(_visibleSize.width / 2, _visibleSize.height - HEIGHT_OFFSET - offset ));
 
+
+	// Create status 
+	Label* connectLb1 = Label::create("Player1 : ", "fonts/arial.ttf", 30);
+	connectLb1->setColor(Color3B::WHITE);
+	connectLb1->setHorizontalAlignment(TextHAlignment::CENTER);
+	connectLb1->setPosition(Vec2(_visibleSize.width/2 - 20 - connectLb1->getContentSize().width/2 , HEIGHT_OFFSET/2));
+	this->addChild(connectLb1);
+
+
+	_player1Score = createScoreLabel();
+	_player1Score->setPosition(connectLb1->getPosition() + Vec2(connectLb1->getContentSize().width / 2 + 20 + 100, 0));
+	_player1Score->setString("0");
+
+	Label* connectLb2 = Label::create("Player2 : ", "fonts/arial.ttf", 30);
+	connectLb2->setColor(Color3B::WHITE);
+	connectLb2->setHorizontalAlignment(TextHAlignment::CENTER);
+	connectLb2->setPosition(Vec2(_visibleSize.width / 2 - 20 - connectLb2->getContentSize().width / 2, _visibleSize.height - HEIGHT_OFFSET / 2));
+	this->addChild(connectLb2);
+	
+
+	_player2Score = createScoreLabel();
+	_player2Score->setPosition(connectLb2->getPosition() + Vec2(connectLb2->getContentSize().width / 2 + 20 + 100, 0));
+	_player2Score->setString("0");
+
+
+	
+	
 }
+
 
 /*
 Khoi tao game border
@@ -97,11 +141,11 @@ void PlayGame::createGameBorder()
 {
 	_border = Node::create();
 
-	// Tao body cho khung vat ly
+	// Tao body cho khung vat ly PhysicsMaterial theo thu tu (Density , Restitution  , Friction)
 	// Density : ty trong, mat do
 	// Restitution : Dan hoi
 	// Friction : ma sat
-	PhysicsBody* borderBody = PhysicsBody::createEdgeBox(_visibleSize - Size(10,10), PhysicsMaterial(1.0f, 1.0f, 0.0f));
+	PhysicsBody* borderBody = PhysicsBody::createEdgeBox(_visibleSize - Size( WIDTH_OFFSET ,  HEIGHT_OFFSET ) * 2 , PhysicsMaterial(1.0f, 1.0f, 0.0f));
 	borderBody->setGravityEnable(false);
 	borderBody->setContactTestBitmask(eObjectBitMask::BORDER);
 
@@ -169,6 +213,44 @@ Sprite* PlayGame::createPaddle()
 	return paddle;
 }
 
+Label* PlayGame::createScoreLabel()
+{
+	Label* statusLabel = Label::create("", "fonts/arial.ttf", 30);
+	statusLabel->setColor(Color3B::WHITE);
+	statusLabel->setHorizontalAlignment(TextHAlignment::CENTER);
+
+	this->addChild(statusLabel);
+
+	return statusLabel;
+}
+
+
+void PlayGame::update(float dt){
+
+	
+	/*
+	if (_paddle1->getPositionX() < (_paddle1->getContentSize().width / 2 + WIDTH_OFFSET) || _paddle1->getPositionX() > (_visibleSize.width - _paddle1->getContentSize().width / 2 - WIDTH_OFFSET)){
+		_paddle1->getPhysicsBody()->setCollisionBitmask(0x00000000);
+		_paddle1->getPhysicsBody()->setGravityEnable(false);
+		_paddle1->getPhysicsBody()->setRotationEnable(false);
+		return;
+	}
+	else{
+		_paddle1->getPhysicsBody()->setCollisionBitmask(0xFFFFFFFF);
+	}
+
+	if (_paddle2->getPositionX() < (_paddle2->getContentSize().width / 2 + WIDTH_OFFSET) || _paddle2->getPositionX() > (_visibleSize.width - _paddle2->getContentSize().width / 2 - WIDTH_OFFSET)){
+		_paddle2->getPhysicsBody()->setCollisionBitmask(0x00000000);
+		_paddle2->getPhysicsBody()->setGravityEnable(false);
+		_paddle2->getPhysicsBody()->setRotationEnable(false);
+		return;
+	}
+	else{
+		_paddle2->getPhysicsBody()->setCollisionBitmask(0xFFFFFFFF);
+	}
+	*/
+
+}
 
 bool PlayGame::onTouchBegan(Touch* touch, Event* event)
 {
@@ -182,19 +264,11 @@ void PlayGame::onTouchMoved(Touch* touch, Event* event)
 	// Xac dinh doi tuong touch thong qua bounding box
 	if (_paddle1->getBoundingBox().containsPoint(touchPoint)){
 		_paddle1->setPositionX(touchPoint.x);
-
-		if (_paddle1->getPositionX() < (_paddle1->getContentSize().width) || _paddle1->getPositionX() > (_visibleSize.width - _paddle1->getContentSize().width)){
-			return;
-		}
 	}
 	
 
 	if (_paddle2->getBoundingBox().containsPoint(touchPoint)){
 		_paddle2->setPositionX(touchPoint.x);
-
-		if (_paddle2->getPositionX() < (_paddle2->getContentSize().width) || _paddle2->getPositionX() > (_visibleSize.width - _paddle2->getContentSize().width)){
-			return;
-		}
 	}
 	
 }

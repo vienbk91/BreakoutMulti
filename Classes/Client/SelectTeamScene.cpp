@@ -7,6 +7,12 @@
 
 #include "SelectTeamScene.h"
 
+// Su dung cho socket.io
+#include "json/rapidjson.h"
+#include "json/document.h"
+#include "json/writer.h"
+#include "json/stringbuffer.h"
+
 Scene* SelectTeamScene::createScene()
 {
 	auto scene = Scene::create();
@@ -30,7 +36,7 @@ bool SelectTeamScene::init()
 	// Select team A
 
 	auto teamABtn = Button::create();
-	teamABtn->loadTextureNormal("start.png");
+	teamABtn->loadTextureNormal("player1.png");
 	teamABtn->setTouchEnabled(true);
 	teamABtn->setPosition(Vec2(_visibleSize.width / 2, _visibleSize.height / 2 + 100));
 	teamABtn->addTouchEventListener(CC_CALLBACK_2(SelectTeamScene::SelectTeamBtnCallback , this , 1));
@@ -42,7 +48,7 @@ bool SelectTeamScene::init()
 	// Select team B
 
 	auto teamBBtn = Button::create();
-	teamBBtn->loadTextureNormal("start.png");
+	teamBBtn->loadTextureNormal("player2.png");
 	teamBBtn->setTouchEnabled(true);
 	teamBBtn->setPosition(Vec2(_visibleSize.width / 2, _visibleSize.height / 2 - 100));
 	teamBBtn->addTouchEventListener(CC_CALLBACK_2(SelectTeamScene::SelectTeamBtnCallback, this , 2));
@@ -66,10 +72,57 @@ bool SelectTeamScene::init()
 
 void SelectTeamScene::SelectTeamBtnCallback(Ref* pSender, Widget::TouchEventType type , int teamId)
 {
-	if (teamId == 1){
-		auto client = NodeServer::getInstance()->getClient();
 
+	string textTest;
+
+	std::stringstream str;
+	str << teamId;
+
+	textTest = "{\"value\":\"" + str.str() +"\"}";
+
+	auto client = NodeServer::getInstance()->getClient();
+	client->emit("hello", textTest);
+
+
+	// Lay trang thai connect cuar player tu server
+	client->on("connect_end", CC_CALLBACK_2(SelectTeamScene::checkPlayerConnectEvent, this));
+}
+
+
+/*
+Check player connect status using get event "hello" data from server
+*/
+
+void SelectTeamScene::checkPlayerConnectEvent(SIOClient* client, const string& data)
+{
+	log("Co vao day khong vay");
+	log("Data : %s", data.c_str());
+
+	rapidjson::Document document;
+	document.Parse<0>(data.c_str());
+
+	log("Data Value : %s", document["value"].GetString());
+
+	if (document.HasParseError()){
+		log("//=============Parse Error!!!");
+		return;
 	}
-	Director::getInstance()->replaceScene(TransitionMoveInR::create(0.25f , PlayGame::createScene() ) );
+
+	// Lay data
+	if (document.IsObject()){
+		// Neu ton tai truong co key = value
+		if (document.HasMember("value"))
+		{
+			// Lay gia tri cua truong value
+			std::string value = document["value"].GetString();
+
+			// Ca 2 nguoi choi da dang nhap
+			if (strcmp(value.c_str(), "2") == 0)
+			{
+				Director::getInstance()->replaceScene(TransitionMoveInR::create(0.25f, PlayGame::createScene()));
+			}
+
+		}
+	}
 }
 

@@ -12,9 +12,11 @@
 #include "ui/CocosGUI.h"
 #include "SelectTeamScene.h"
 #include "Define.h"
+#include "Server/NodeJSServer.h"
 
 USING_NS_CC;
 using namespace ui;
+using namespace std;
 
 class PlayGame : public Layer
 {
@@ -32,6 +34,9 @@ private:
 	Sprite* _paddle2;
 	Node* _border;
 
+	Label* _player1Score;
+	Label* _player2Score;
+
 	PhysicsWorld* _mWorld;
 
 	void setLayerPhysicsWorld(PhysicsWorld* world);
@@ -41,12 +46,15 @@ private:
 	
 	Sprite* createBall();
 	Sprite* createPaddle();
+	Label* createScoreLabel();
 
 	bool onTouchBegan(Touch* touch, Event* event);
 	void onTouchMoved(Touch* touch, Event* event);
 	void onTouchEnded(Touch* touch, Event* event);
 
 	bool onContactBegin(PhysicsContact& contact);
+
+	void update(float dt);
 
 };
 

@@ -38,8 +38,6 @@ public:
 	virtual void onClose(SIOClient* client);
 	virtual void onError(SIOClient* client, const string& data);
 
-	virtual void disconnectCallback(SIOClient* client, const string& data);
-
 private:
 	static NodeServer* _nodeServer;
 

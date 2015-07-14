@@ -44,17 +44,7 @@ bool NodeServer::init()
 	CCASSERT(_socketClient , "==============>Error! Can not create socketIO");
 	log("============> Connect to nodejs server : %s" , url.c_str() );
 
-	// Neu client disconnect thi se yeu cau ket noi lai
-	_socketClient->on("disconnect", CC_CALLBACK_2(NodeServer::disconnectCallback, this));
-
 	return true;
-}
-
-
-void NodeServer::disconnectCallback(SIOClient* client, const string& data){
-	log("==================> Try Reconnect with server");
-	this->destroyInstance();
-	_socketClient = this->getInstance()->getClient();
 }
 
 
