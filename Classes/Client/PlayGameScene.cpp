@@ -18,7 +18,7 @@
 #define WIDTH_OFFSET 5
 #define HEIGHT_OFFSET 100
 
-Scene* PlayGame::createScene()
+Scene* PlayGame::createScene(vector<RoomPlayer> allPlayer)
 {
 	// Khoi tao scene voi thuoc tinh vat ly
 	auto scene = Scene::createWithPhysics();
@@ -27,7 +27,7 @@ Scene* PlayGame::createScene()
 	// Thiet lap trong luong bang 0
 	scene->getPhysicsWorld()->setGravity(Vect(0.0f , 0.0f));
 
-	auto layer = PlayGame::create();
+	auto layer = PlayGame::create(allPlayer);
 
 
 	scene->addChild(layer);
@@ -42,12 +42,27 @@ void PlayGame::setLayerPhysicsWorld(PhysicsWorld* world)
 }
 
 
-bool PlayGame::init()
+PlayGame* PlayGame::create(vector<RoomPlayer> allPlayer)
 {
-	if(!Layer::init())
+	auto layer = new PlayGame();
+	if (layer && layer->init(allPlayer)){
+		layer->autorelease();
+		return layer;
+	}
+	CC_SAFE_DELETE(layer);
+	return nullptr;
+}
+
+
+bool PlayGame::init(vector<RoomPlayer> allPlayer)
+{
+	if (!Layer::init())
 	{
 		return false;
 	}
+
+
+	_allPlayer = allPlayer;
 
 	_visibleSize = Director::getInstance()->getVisibleSize();
 
@@ -70,6 +85,9 @@ bool PlayGame::init()
 
 
 	this->scheduleUpdate();
+
+
+
 
 
 	return true;
@@ -113,9 +131,9 @@ void PlayGame::createContent()
 	this->addChild(connectLb1);
 
 
-	_player1Score = createScoreLabel();
-	_player1Score->setPosition(connectLb1->getPosition() + Vec2(connectLb1->getContentSize().width / 2 + 20 + 100, 0));
-	_player1Score->setString("0");
+	_player1Status = createStatusLabel();
+	_player1Status->setPosition(connectLb1->getPosition() + Vec2(connectLb1->getContentSize().width / 2 + 20 + 100, 0));
+	_player1Status->setString("Disconnect");
 
 	Label* connectLb2 = Label::create("Player2 : ", "fonts/arial.ttf", 30);
 	connectLb2->setColor(Color3B::WHITE);
@@ -124,12 +142,14 @@ void PlayGame::createContent()
 	this->addChild(connectLb2);
 	
 
-	_player2Score = createScoreLabel();
-	_player2Score->setPosition(connectLb2->getPosition() + Vec2(connectLb2->getContentSize().width / 2 + 20 + 100, 0));
-	_player2Score->setString("0");
+	_player2Status = createStatusLabel();
+	_player2Status->setPosition(connectLb2->getPosition() + Vec2(connectLb2->getContentSize().width / 2 + 20 + 100, 0));
+	_player2Status->setString("Disconnect");
 
 
-	
+	// Lay trang thai connect cuar player tu server
+	//auto client = NodeServer::getInstance()->getClient();
+	//client->on("hello", CC_CALLBACK_2(PlayGame::checkPlayerConnectEvent, this));
 	
 }
 
@@ -213,7 +233,7 @@ Sprite* PlayGame::createPaddle()
 	return paddle;
 }
 
-Label* PlayGame::createScoreLabel()
+Label* PlayGame::createStatusLabel()
 {
 	Label* statusLabel = Label::create("", "fonts/arial.ttf", 30);
 	statusLabel->setColor(Color3B::WHITE);
@@ -250,7 +270,54 @@ void PlayGame::update(float dt){
 	}
 	*/
 
+
+
 }
+
+
+
+/*
+Check player connect status using get event "hello" data from server
+*/
+
+void PlayGame::checkPlayerConnectEvent(SIOClient* client, const string& data)
+{
+	log("Co vao day khong vay");
+	log("Data : %s", data.c_str());
+
+	rapidjson::Document document;
+	document.Parse<0>(data.c_str());
+
+	log("Data Value : %s", document["value"].GetString());
+
+	if (document.HasParseError()){
+		log("//=============Parse Error!!!");
+		return;
+	}
+
+	// Lay data
+	if (document.IsObject()){
+		// Neu ton tai truong co key = value
+		if (document.HasMember("value"))
+		{
+			// Lay gia tri cua truong value
+			std::string value = document["value"].GetString();
+
+			// Ca 2 nguoi choi da dang nhap
+			/*
+			if (strcmp(value.c_str(), "2") == 0)
+			{
+				
+			}
+			*/
+
+		}
+	}
+}
+
+
+
+
 
 bool PlayGame::onTouchBegan(Touch* touch, Event* event)
 {

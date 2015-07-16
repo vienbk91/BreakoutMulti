@@ -18,22 +18,30 @@
 USING_NS_CC;
 using namespace ui;
 
+
+#define PLAYER_NUM "PLAYER_NUM"
+
 class SelectTeamScene : public Layer
 {
 public:
-	static Scene* createScene();
-	virtual bool init();
+	static Scene* createScene(vector<RoomPlayer> allPlayer);
+	static SelectTeamScene* create(vector<RoomPlayer> allPlayer);
+	virtual bool init(vector<RoomPlayer> allPlayer);
 
-	CREATE_FUNC(SelectTeamScene);
 
 	Size _visibleSize;
 
+	vector<RoomPlayer> _allPlayer;
+
 private:
+
+	Button* _teamABtn;
+	Button* _teamBBtn;
+
 
 	void SelectTeamBtnCallback(Ref* pSender , Widget::TouchEventType type , int teamId);
 
-	void checkPlayerConnectEvent(SIOClient* client, const string& data);
-
+	void connectedCallback(SIOClient* client, const string& data);
 };
 
 #endif /* SELECTTEAMSCENE_H_ */

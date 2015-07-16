@@ -13,56 +13,92 @@
 #include "json/writer.h"
 #include "json/stringbuffer.h"
 
-Scene* SelectTeamScene::createScene()
+Scene* SelectTeamScene::createScene(vector<RoomPlayer> allPlayer)
 {
 	auto scene = Scene::create();
-	auto layer = SelectTeamScene::create();
+	auto layer = SelectTeamScene::create(allPlayer);
 
 	scene->addChild(layer);
 
 	return scene;
 }
 
+SelectTeamScene* SelectTeamScene::create(vector<RoomPlayer> allPlayer)
+{
+	auto layer = new SelectTeamScene();
+	if (layer && layer->init(allPlayer)){
+		layer->autorelease();
+		return layer;
+	}
+	CC_SAFE_DELETE(layer);
+	return nullptr;
+}
 
-bool SelectTeamScene::init()
+
+bool SelectTeamScene::init(vector<RoomPlayer> allPlayer)
 {
 	if(!Layer::init()){
 		return false;
 	}
+
+
+
+	_allPlayer = allPlayer;
 
 	_visibleSize = Director::getInstance()->getVisibleSize();
 
 	//======================================================
 	// Select team A
 
-	auto teamABtn = Button::create();
-	teamABtn->loadTextureNormal("player1.png");
-	teamABtn->setTouchEnabled(true);
-	teamABtn->setPosition(Vec2(_visibleSize.width / 2, _visibleSize.height / 2 + 100));
-	teamABtn->addTouchEventListener(CC_CALLBACK_2(SelectTeamScene::SelectTeamBtnCallback , this , 1));
-	this->addChild(teamABtn);
+	_teamABtn = Button::create();
+	_teamABtn->loadTextureNormal("player1.png");
+	_teamABtn->setTouchEnabled(true);
+	_teamABtn->setPosition(Vec2(_visibleSize.width / 2, _visibleSize.height / 2 + 100));
+	_teamABtn->addTouchEventListener(CC_CALLBACK_2(SelectTeamScene::SelectTeamBtnCallback , this , 1));
+	this->addChild(_teamABtn);
 
 
 
 	//======================================================
 	// Select team B
 
-	auto teamBBtn = Button::create();
-	teamBBtn->loadTextureNormal("player2.png");
-	teamBBtn->setTouchEnabled(true);
-	teamBBtn->setPosition(Vec2(_visibleSize.width / 2, _visibleSize.height / 2 - 100));
-	teamBBtn->addTouchEventListener(CC_CALLBACK_2(SelectTeamScene::SelectTeamBtnCallback, this , 2));
-	this->addChild(teamBBtn);
+	_teamBBtn = Button::create();
+	_teamBBtn->loadTextureNormal("player2.png");
+	_teamBBtn->setTouchEnabled(true);
+	_teamBBtn->setPosition(Vec2(_visibleSize.width / 2, _visibleSize.height / 2 - 100));
+	_teamBBtn->addTouchEventListener(CC_CALLBACK_2(SelectTeamScene::SelectTeamBtnCallback, this, 2));
+	this->addChild(_teamBBtn);
 
 	if (CC_TARGET_PLATFORM == CC_PLATFORM_WIN32)
 	{
-		teamABtn->setScale(1.0f);
-		teamBBtn->setScale(1.0f);
+		_teamABtn->setScale(1.0f);
+		_teamBBtn->setScale(1.0f);
 	}
 	else if (CC_TARGET_PLATFORM == CC_PLATFORM_ANDROID)
 	{
-		teamABtn->setScale(2.0f);
-		teamBBtn->setScale(2.0f);
+		_teamABtn->setScale(2.0f);
+		_teamBBtn->setScale(2.0f);
+	}
+
+	//========================================================
+	// Kiem tra du lieu trong mongodb de kiem tra trang thai cua player
+	/*
+	Khoi tao csdl ten la room bang nodejs
+	Co chua 2 nguoi choi , default info do la player_id = {1,2} , status : false( database da duoc khoi tao bang mongodb)
+	Thuc hien ket noi voi 1 lop Model de co the thao tac voi du lieu mongodb
+
+	Kiem tra du lieu da khoi tao
+	Khi opemRoom thi se check du lieu trong database, neu status la false thi de o trang thai ban dau, neu status = true thi chuyen trang thai da connect
+	*/
+
+	if (allPlayer[0].player_id == 1 && (allPlayer[0].status == true) ){
+		_teamABtn->loadTextureNormal("player1_cnt.png");
+		_teamABtn->setTouchEnabled(false);
+	}
+
+	if (allPlayer[1].player_id == 2 && (allPlayer[1].status == true)){
+		_teamBBtn->loadTextureNormal("player2_cnt.png");
+		_teamBBtn->setTouchEnabled(false);
 	}
 
 
@@ -73,56 +109,54 @@ bool SelectTeamScene::init()
 void SelectTeamScene::SelectTeamBtnCallback(Ref* pSender, Widget::TouchEventType type , int teamId)
 {
 
-	string textTest;
 
-	std::stringstream str;
-	str << teamId;
+	switch (type)
+	{
+	case cocos2d::ui::Widget::TouchEventType::BEGAN:
+		break;
+	case cocos2d::ui::Widget::TouchEventType::MOVED:
+		break;
+	case cocos2d::ui::Widget::TouchEventType::ENDED:
+	{
 
-	textTest = "{\"value\":\"" + str.str() +"\"}";
+		// Update thong tin cua database khi player connect
 
-	auto client = NodeServer::getInstance()->getClient();
-	client->emit("hello", textTest);
+		//======================================================
+		// Update mongodb after button click , change status
+
+		auto client = NodeServer::getInstance()->getClient();
+
+		switch (teamId)
+		{
+		case 1:
+			_allPlayer[0].status = true;
+			break;
+		case 2:
+			_allPlayer[1].status = true;
+		default:
+			break;
+		}
+
+		std::stringstream connectMsg;
+
+		connectMsg << "[{\"player_id\":" << _allPlayer[0].player_id << " , \"status\":" << _allPlayer[0].status 
+			<< "} , {\"player_id\":" << _allPlayer[1].player_id << " , \"status\":" << _allPlayer[1].status << "}]";
+
+		client->emit("player_connect", connectMsg.str());
 
 
-	// Lay trang thai connect cuar player tu server
-	client->on("connect_end", CC_CALLBACK_2(SelectTeamScene::checkPlayerConnectEvent, this));
+
+		break;
+	}
+	case cocos2d::ui::Widget::TouchEventType::CANCELED:
+		break;
+	default:
+		break;
+	}
 }
 
-
-/*
-Check player connect status using get event "hello" data from server
-*/
-
-void SelectTeamScene::checkPlayerConnectEvent(SIOClient* client, const string& data)
+void SelectTeamScene::connectedCallback(SIOClient* client, const string& data)
 {
-	log("Co vao day khong vay");
-	log("Data : %s", data.c_str());
 
-	rapidjson::Document document;
-	document.Parse<0>(data.c_str());
-
-	log("Data Value : %s", document["value"].GetString());
-
-	if (document.HasParseError()){
-		log("//=============Parse Error!!!");
-		return;
-	}
-
-	// Lay data
-	if (document.IsObject()){
-		// Neu ton tai truong co key = value
-		if (document.HasMember("value"))
-		{
-			// Lay gia tri cua truong value
-			std::string value = document["value"].GetString();
-
-			// Ca 2 nguoi choi da dang nhap
-			if (strcmp(value.c_str(), "2") == 0)
-			{
-				Director::getInstance()->replaceScene(TransitionMoveInR::create(0.25f, PlayGame::createScene()));
-			}
-
-		}
-	}
 }
 

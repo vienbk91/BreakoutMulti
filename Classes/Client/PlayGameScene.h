@@ -14,6 +14,7 @@
 #include "Define.h"
 #include "Server/NodeJSServer.h"
 
+
 USING_NS_CC;
 using namespace ui;
 using namespace std;
@@ -21,12 +22,14 @@ using namespace std;
 class PlayGame : public Layer
 {
 public:
-	static Scene* createScene();
-	virtual bool init();
+	static Scene* createScene(vector<RoomPlayer> allPlayer);
+	virtual bool init(vector<RoomPlayer> allPlayer);
 
-	CREATE_FUNC(PlayGame);
+	static PlayGame* create(vector<RoomPlayer> allPlayer);
 
 	Size _visibleSize;
+
+	vector<RoomPlayer> _allPlayer;
 
 private:
 	Sprite* _ball;
@@ -34,8 +37,8 @@ private:
 	Sprite* _paddle2;
 	Node* _border;
 
-	Label* _player1Score;
-	Label* _player2Score;
+	Label* _player1Status;
+	Label* _player2Status;
 
 	PhysicsWorld* _mWorld;
 
@@ -46,7 +49,7 @@ private:
 	
 	Sprite* createBall();
 	Sprite* createPaddle();
-	Label* createScoreLabel();
+	Label* createStatusLabel();
 
 	bool onTouchBegan(Touch* touch, Event* event);
 	void onTouchMoved(Touch* touch, Event* event);
@@ -55,6 +58,8 @@ private:
 	bool onContactBegin(PhysicsContact& contact);
 
 	void update(float dt);
+
+	void checkPlayerConnectEvent(SIOClient* client, const string& data);
 
 };
 

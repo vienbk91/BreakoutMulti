@@ -29,4 +29,12 @@ enum eObjectBitMask
 	BORDER = 0x00000001
 };
 
+
+struct RoomPlayer
+{
+	int player_id;
+    bool status;
+};
+
+
 #endif /* DEFINE_H_ */

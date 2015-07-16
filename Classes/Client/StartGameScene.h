@@ -6,6 +6,7 @@
 
 #include "SelectTeamScene.h"
 #include "Server/NodeJSServer.h"
+#include "Client/Define.h"
 
 USING_NS_CC;
 using namespace ui;
@@ -17,6 +18,8 @@ public:
 	virtual bool init();
 
 	CREATE_FUNC(StartGameScene);
+
+	vector<RoomPlayer> _allPlayer;
 
 private:
 
