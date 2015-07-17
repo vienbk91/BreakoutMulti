@@ -70,6 +70,26 @@ io.sockets.on('connection' , function(socket){
 		
 		var dt = JSON.parse(data);
 		
+		for(var i = 0 ; i < 2 ; i++){
+			if(dt[i]['status'] == 1){
+				dt[i]['status'] = true;
+				
+			}else{
+				dt[i]['status'] = false;
+			}
+			
+			roomPlayer[i]['status'] = dt[i]['status'];
+			
+			updateDataRoom(dt[i] , dt[i]['status'] , function(){
+				console.log('Update succesfull data room');
+				console.log('Gui du lieu da update lai cho client');
+				socket.emit('player_connect_end' , {room : roomPlayer});
+				
+			});
+		}
+		
+		console.log('RoomPlayer : ' , roomPlayer[0]['status'] , ' va ' , roomPlayer[1]['status']);
+		
 	});
 		
 });
@@ -82,7 +102,26 @@ createConnection(function(){
 });	
 
 
-function updateDataRoom(data , onUpdateDataRoom){
+function updateDataRoom(data , status , onUpdateDataRoom){
+	
+	console.log('Data dung de update' , data);
+	
+	Room.findOne({player_id : data['player_id']} , function(error , room){
+		
+		room.status = status;	
+		room.save(function(error , room ){
+			
+			console.log('Room : ' , room);
+			
+			if(error){
+				console.log('Update faild...');
+			}else{
+				console.log('Update succesfull');
+				onUpdateDataRoom();
+			}
+		});	
+	});	
+	
 	
 }
 
@@ -96,7 +135,7 @@ function getRoomData(data , handle){
 
 function createRoom(onCreate){
 	
-	var user1 = new Room({player_id : 1 , status : true});
+	var user1 = new Room({player_id : 1 , status : false});
 	var user2 = new Room({player_id : 2 , status : false});
 	
 	Room.create([user1 , user2] , function(error){
