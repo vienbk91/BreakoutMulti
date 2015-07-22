@@ -18,7 +18,7 @@
 #define WIDTH_OFFSET 5
 #define HEIGHT_OFFSET 100
 
-Scene* PlayGame::createScene(vector<RoomPlayer> allPlayer)
+Scene* PlayGame::createScene()
 {
 	// Khoi tao scene voi thuoc tinh vat ly
 	auto scene = Scene::createWithPhysics();
@@ -27,7 +27,7 @@ Scene* PlayGame::createScene(vector<RoomPlayer> allPlayer)
 	// Thiet lap trong luong bang 0
 	scene->getPhysicsWorld()->setGravity(Vect(0.0f , 0.0f));
 
-	auto layer = PlayGame::create(allPlayer);
+	auto layer = PlayGame::create();
 
 
 	scene->addChild(layer);
@@ -42,10 +42,10 @@ void PlayGame::setLayerPhysicsWorld(PhysicsWorld* world)
 }
 
 
-PlayGame* PlayGame::create(vector<RoomPlayer> allPlayer)
+PlayGame* PlayGame::create()
 {
 	auto layer = new PlayGame();
-	if (layer && layer->init(allPlayer)){
+	if (layer && layer->init()){
 		layer->autorelease();
 		return layer;
 	}
@@ -54,7 +54,7 @@ PlayGame* PlayGame::create(vector<RoomPlayer> allPlayer)
 }
 
 
-bool PlayGame::init(vector<RoomPlayer> allPlayer)
+bool PlayGame::init()
 {
 	if (!Layer::init())
 	{
@@ -62,15 +62,11 @@ bool PlayGame::init(vector<RoomPlayer> allPlayer)
 	}
 
 
-	_allPlayer = allPlayer;
-
 	_visibleSize = Director::getInstance()->getVisibleSize();
-
-	createContent();
-	createGameBorder();
 
 
 	auto touchListener = EventListenerTouchOneByOne::create();
+	touchListener->setSwallowTouches(true);
 	touchListener->onTouchBegan = CC_CALLBACK_2(PlayGame::onTouchBegan, this);
 	touchListener->onTouchMoved = CC_CALLBACK_2(PlayGame::onTouchMoved, this);
 	touchListener->onTouchEnded = CC_CALLBACK_2(PlayGame::onTouchEnded, this);
@@ -83,28 +79,45 @@ bool PlayGame::init(vector<RoomPlayer> allPlayer)
 	contactListener->onContactBegin = CC_CALLBACK_1(PlayGame::onContactBegin, this);
 	_eventDispatcher->addEventListenerWithSceneGraphPriority(contactListener, this);
 
-
-	this->scheduleUpdate();
-
-
-
-
-
 	return true;
 }
 
+
+void PlayGame::onEnter()
+{
+	Layer::onEnter();
+
+	// Lay du lieu dau vao
+
+	auto sequence = Sequence::create(CallFuncN::create([&](Ref* pSender){
+		getFirstData();
+	}), DelayTime::create(1.0f) , CallFuncN::create([&](Ref* pSender){
+		// Tao UI game
+		createContent();
+		createGameBorder();
+	}), nullptr);
+
+	this->runAction(sequence);
+
+
+	// Tao chuyen dong cua bong
+
+	Vect force = Vect(1010000.0f, 1010000.0f);
+	_ball->getPhysicsBody()->applyImpulse(force);
+
+}
 
 /*
 Khoi tao noi dung game
 */
 void PlayGame::createContent()
 {
+	log("//======================>>>> Create content UI");
 	// Create ball
 	_ball = createBall();
 	_ball->setPosition(Vec2(_visibleSize.width/2 , _visibleSize.height/2));
 
 	// Create paddle
-	
 
 	float offset;
 
@@ -131,10 +144,10 @@ void PlayGame::createContent()
 	this->addChild(connectLb1);
 
 
-	_player1Status = createStatusLabel();
-	_player1Status->setPosition(connectLb1->getPosition() + Vec2(connectLb1->getContentSize().width / 2 + 20 + 100, 0));
-	_player1Status->setString("Disconnect");
-
+	_player1Score = createScoreLabel();
+	_player1Score->setPosition(connectLb1->getPosition() + Vec2(connectLb1->getContentSize().width / 2 + 20 + 100, 0));
+	_player1Score->setString("0");
+	
 	Label* connectLb2 = Label::create("Player2 : ", "fonts/arial.ttf", 30);
 	connectLb2->setColor(Color3B::WHITE);
 	connectLb2->setHorizontalAlignment(TextHAlignment::CENTER);
@@ -142,15 +155,72 @@ void PlayGame::createContent()
 	this->addChild(connectLb2);
 	
 
-	_player2Status = createStatusLabel();
-	_player2Status->setPosition(connectLb2->getPosition() + Vec2(connectLb2->getContentSize().width / 2 + 20 + 100, 0));
-	_player2Status->setString("Disconnect");
+	_player2Score = createScoreLabel();
+	_player2Score->setPosition(connectLb2->getPosition() + Vec2(connectLb2->getContentSize().width / 2 + 20 + 100, 0));
+	_player2Score->setString("0");
 
 
-	// Lay trang thai connect cuar player tu server
-	//auto client = NodeServer::getInstance()->getClient();
-	//client->on("hello", CC_CALLBACK_2(PlayGame::checkPlayerConnectEvent, this));
-	
+	log("//======================>>>> End create content UI");
+
+}
+
+/*
+Thuc hien lay du lieu tu server
+*/
+void PlayGame::getFirstData()
+{
+	// Create connect with mongodb
+
+	auto client = NodeServer::getInstance()->getClient();
+
+	client->emit("get_data_first", "Get Data First PlayGame");
+	client->on("get_data_first_end", [&](SIOClient* client, const std::string& data){
+
+		// Thuc hien viec lay du lieu hien tai cua database
+		log("Data First : %s", data.c_str());
+
+		rapidjson::Document document;
+
+		document.Parse<0>(data.c_str());
+
+		bool error = document.HasParseError();
+		if (error){
+			log("//=============Parse Error!!!");
+			return;
+		}
+
+		// Lay data tu database
+		if (document.IsObject() == true)
+		{
+			// Neu ton tai truong co key = value
+			if (document.HasMember("room"))
+			{
+				// Lay gia tri cua truong value
+				log("=====================================");
+				const rapidjson::Value& obj = document["room"];
+				rapidjson::SizeType num = obj.Size();
+
+				for (rapidjson::SizeType i = 0; i < num; i++)
+				{
+					RoomPlayer temp;
+
+					temp.player_id = obj[i]["player_id"].GetInt();
+					temp.status = obj[i]["status"].GetBool();
+
+					log("Player%d id : %d ", i, obj[i]["player_id"].GetInt());
+
+					_allPlayers.push_back(temp);
+
+					log("AAAAA : %d", _allPlayers[i].player_id);
+
+				}
+
+				
+			}
+		}
+
+	});
+
 }
 
 
@@ -225,6 +295,7 @@ Sprite* PlayGame::createPaddle()
 
 	auto paddleBody = PhysicsBody::createBox(paddleBodySize , PhysicsMaterial(1.0f, 1.0f, 0.0f));
 	paddleBody->setGravityEnable(false);
+	paddleBody->setDynamic(false);
 	paddleBody->setContactTestBitmask(eObjectBitMask::PADDLE);
 
 	paddle->setPhysicsBody(paddleBody);
@@ -233,9 +304,9 @@ Sprite* PlayGame::createPaddle()
 	return paddle;
 }
 
-Label* PlayGame::createStatusLabel()
+Label* PlayGame::createScoreLabel()
 {
-	Label* statusLabel = Label::create("", "fonts/arial.ttf", 30);
+	Label* statusLabel = Label::create("", "fonts/arial.ttf", 40);
 	statusLabel->setColor(Color3B::WHITE);
 	statusLabel->setHorizontalAlignment(TextHAlignment::CENTER);
 
@@ -243,81 +314,6 @@ Label* PlayGame::createStatusLabel()
 
 	return statusLabel;
 }
-
-
-void PlayGame::update(float dt){
-
-	
-	/*
-	if (_paddle1->getPositionX() < (_paddle1->getContentSize().width / 2 + WIDTH_OFFSET) || _paddle1->getPositionX() > (_visibleSize.width - _paddle1->getContentSize().width / 2 - WIDTH_OFFSET)){
-		_paddle1->getPhysicsBody()->setCollisionBitmask(0x00000000);
-		_paddle1->getPhysicsBody()->setGravityEnable(false);
-		_paddle1->getPhysicsBody()->setRotationEnable(false);
-		return;
-	}
-	else{
-		_paddle1->getPhysicsBody()->setCollisionBitmask(0xFFFFFFFF);
-	}
-
-	if (_paddle2->getPositionX() < (_paddle2->getContentSize().width / 2 + WIDTH_OFFSET) || _paddle2->getPositionX() > (_visibleSize.width - _paddle2->getContentSize().width / 2 - WIDTH_OFFSET)){
-		_paddle2->getPhysicsBody()->setCollisionBitmask(0x00000000);
-		_paddle2->getPhysicsBody()->setGravityEnable(false);
-		_paddle2->getPhysicsBody()->setRotationEnable(false);
-		return;
-	}
-	else{
-		_paddle2->getPhysicsBody()->setCollisionBitmask(0xFFFFFFFF);
-	}
-	*/
-
-
-
-}
-
-
-
-/*
-Check player connect status using get event "hello" data from server
-*/
-
-void PlayGame::checkPlayerConnectEvent(SIOClient* client, const string& data)
-{
-	log("Co vao day khong vay");
-	log("Data : %s", data.c_str());
-
-	rapidjson::Document document;
-	document.Parse<0>(data.c_str());
-
-	log("Data Value : %s", document["value"].GetString());
-
-	if (document.HasParseError()){
-		log("//=============Parse Error!!!");
-		return;
-	}
-
-	// Lay data
-	if (document.IsObject()){
-		// Neu ton tai truong co key = value
-		if (document.HasMember("value"))
-		{
-			// Lay gia tri cua truong value
-			std::string value = document["value"].GetString();
-
-			// Ca 2 nguoi choi da dang nhap
-			/*
-			if (strcmp(value.c_str(), "2") == 0)
-			{
-				
-			}
-			*/
-
-		}
-	}
-}
-
-
-
-
 
 bool PlayGame::onTouchBegan(Touch* touch, Event* event)
 {
@@ -339,6 +335,7 @@ void PlayGame::onTouchMoved(Touch* touch, Event* event)
 	}
 	
 }
+
 void PlayGame::onTouchEnded(Touch* touch, Event* event)
 {
 

@@ -22,14 +22,17 @@ using namespace std;
 class PlayGame : public Layer
 {
 public:
-	static Scene* createScene(vector<RoomPlayer> allPlayer);
-	virtual bool init(vector<RoomPlayer> allPlayer);
-
-	static PlayGame* create(vector<RoomPlayer> allPlayer);
+	static Scene* createScene();
+	virtual bool init();
+	static PlayGame* create(); // tuong tu ham CC_FUNC(PlayGame);
 
 	Size _visibleSize;
 
-	vector<RoomPlayer> _allPlayer;
+	vector<RoomPlayer> _allPlayers;
+	RoomPlayer _player1Data;
+	RoomPlayer _player2Data;
+
+	void onEnter();
 
 private:
 	Sprite* _ball;
@@ -37,10 +40,12 @@ private:
 	Sprite* _paddle2;
 	Node* _border;
 
-	Label* _player1Status;
-	Label* _player2Status;
+	Label* _player1Score;
+	Label* _player2Score;
 
 	PhysicsWorld* _mWorld;
+
+	void getFirstData();
 
 	void setLayerPhysicsWorld(PhysicsWorld* world);
 
@@ -49,17 +54,14 @@ private:
 	
 	Sprite* createBall();
 	Sprite* createPaddle();
-	Label* createStatusLabel();
+	Label* createScoreLabel();
+
+
+	bool onContactBegin(PhysicsContact& contact);
 
 	bool onTouchBegan(Touch* touch, Event* event);
 	void onTouchMoved(Touch* touch, Event* event);
 	void onTouchEnded(Touch* touch, Event* event);
-
-	bool onContactBegin(PhysicsContact& contact);
-
-	void update(float dt);
-
-	void checkPlayerConnectEvent(SIOClient* client, const string& data);
 
 };
 

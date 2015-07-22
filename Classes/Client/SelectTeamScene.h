@@ -1,9 +1,9 @@
 /*
- * SelectTeamScene.h
- *
- *  Created on: 13 Jul 2015
- *      Author: chu
- */
+* SelectTeamScene.h
+*
+*  Created on: 13 Jul 2015
+*      Author: chu
+*/
 
 #ifndef SELECTTEAMSCENE_H_
 #define SELECTTEAMSCENE_H_
@@ -33,15 +33,23 @@ public:
 
 	vector<RoomPlayer> _allPlayer;
 
+public:
+
+	bool _player1ConnectedFlg = false;
+	bool _player2ConnectedFlg = false;
+
+
 private:
 
 	Button* _teamABtn;
 	Button* _teamBBtn;
 
-
-	void SelectTeamBtnCallback(Ref* pSender , Widget::TouchEventType type , int teamId);
-
+	void SelectTeamBtnCallback(Ref* pSender, Widget::TouchEventType type, int teamId);
 	void connectedCallback(SIOClient* client, const string& data);
+
+	void update(float dt);
+	void realtimeCheckData();
+
 };
 
 #endif /* SELECTTEAMSCENE_H_ */

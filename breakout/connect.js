@@ -63,7 +63,8 @@ io.sockets.on('connection' , function(socket){
 		});
 	});
 	
-	
+
+	// Nhan yeu cau tu client, check du lieu mongodb thong qua server
 	socket.on('player_connect' , function(data){
 		console.log('Gui du lieu len server thanh cong');
 		console.log('Data gui len server : ' , data);
@@ -78,18 +79,30 @@ io.sockets.on('connection' , function(socket){
 				dt[i]['status'] = false;
 			}
 			
-			roomPlayer[i]['status'] = dt[i]['status'];
+			// Thay doi gia tri cua bien toan cuc
+			roomPlayer[i]['status'] = dt[i]['status']; 
 			
 			updateDataRoom(dt[i] , dt[i]['status'] , function(){
 				console.log('Update succesfull data room');
 				console.log('Gui du lieu da update lai cho client');
 				socket.emit('player_connect_end' , {room : roomPlayer});
+				socket.broadcast.emit('player_connect_end' , {room : roomPlayer});
+
 				
 			});
 		}
 		
-		console.log('RoomPlayer : ' , roomPlayer[0]['status'] , ' va ' , roomPlayer[1]['status']);
-		
+		console.log('RoomPlayer1 : ' , roomPlayer[0]['player_id'] , ' va ' , roomPlayer[0]['status']);
+		console.log('RoomPlayer2 : ' , roomPlayer[1]['player_id'] , ' va ' , roomPlayer[1]['status']);
+	});
+
+	socket.on('realtime_check' , function(data){
+		socket.emit('realtime_check_end' , {room : roomPlayer});
+	});
+
+	socket.on('get_data_first' , function(data){
+		console.log('Message: ' , data);
+		socket.emit('get_data_first_end' , {room : roomPlayer});
 	});
 		
 });

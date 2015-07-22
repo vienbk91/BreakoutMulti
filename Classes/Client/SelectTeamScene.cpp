@@ -69,6 +69,7 @@ bool SelectTeamScene::init(vector<RoomPlayer> allPlayer)
 	_teamBBtn->addTouchEventListener(CC_CALLBACK_2(SelectTeamScene::SelectTeamBtnCallback, this, 2));
 	this->addChild(_teamBBtn);
 
+
 	if (CC_TARGET_PLATFORM == CC_PLATFORM_WIN32)
 	{
 		_teamABtn->setScale(1.0f);
@@ -91,6 +92,9 @@ bool SelectTeamScene::init(vector<RoomPlayer> allPlayer)
 	Khi opemRoom thi se check du lieu trong database, neu status la false thi de o trang thai ban dau, neu status = true thi chuyen trang thai da connect
 	*/
 
+	_player1ConnectedFlg = _allPlayer[0].status;
+	_player2ConnectedFlg = _allPlayer[1].status;
+
 	if (allPlayer[0].player_id == 1 && (allPlayer[0].status == true) ){
 		_teamABtn->loadTextureNormal("player1_cnt.png");
 		_teamABtn->setTouchEnabled(false);
@@ -101,9 +105,104 @@ bool SelectTeamScene::init(vector<RoomPlayer> allPlayer)
 		_teamBBtn->setTouchEnabled(false);
 	}
 
-
+	this->scheduleUpdate();
 
 	return true;
+}
+
+
+void SelectTeamScene::realtimeCheckData()
+{
+	// Create connect with mongodb
+
+	auto client = NodeServer::getInstance()->getClient();
+	
+	// Gui toi server 1 event yeu cau check data tu mongodb
+	string connectMsg;
+
+	connectMsg = "RealTime check data";
+	client->emit("realtime_check", connectMsg);
+	client->on("realtime_check_end", [&](SIOClient* client, const std::string& data){
+
+		log("Callback tai day");
+
+		// Thuc hien viec lay du lieu ban dau cua database
+		log("Data : %s", data.c_str());
+
+		rapidjson::Document document;
+
+		document.Parse<0>(data.c_str());
+
+		bool error = document.HasParseError();
+		if (error){
+			log("//=============Parse Error!!!");
+			return;
+		}
+
+		// Lay data
+		if (document.IsObject() == true)
+		{
+			// Neu ton tai truong co key = value
+			if (document.HasMember("room"))
+			{
+				// Lay gia tri cua truong value
+				log("=====================================");
+				const rapidjson::Value& obj = document["room"];
+				rapidjson::SizeType num = obj.Size();
+
+				for (rapidjson::SizeType i = 0; i < num; i++)
+				{
+					RoomPlayer temp;
+
+					temp.player_id = obj[i]["player_id"].GetInt();
+					temp.status = obj[i]["status"].GetBool();
+
+					if (temp.player_id == 1){
+						_player1ConnectedFlg = temp.status;
+					}
+
+					if (temp.player_id == 2){
+						_player2ConnectedFlg == temp.status;
+					}
+
+				}
+
+			}
+		}
+	});
+
+}
+
+
+void SelectTeamScene::update(float dt)
+{
+	realtimeCheckData();
+
+	if (_player1ConnectedFlg == true)
+	{
+		log("_player1ConnectedFlg");
+		_allPlayer[0].status = true;
+		_teamABtn->loadTextureNormal("player1_cnt.png");
+		_teamABtn->setTouchEnabled(false);
+	}
+
+	if (_player2ConnectedFlg == true)
+	{
+		log("_player2ConnectedFlg");
+		_allPlayer[1].status = true;
+		_teamBBtn->loadTextureNormal("player2_cnt.png");
+		_teamBBtn->setTouchEnabled(false);
+	}
+
+	if (_player1ConnectedFlg == true && _player2ConnectedFlg == true)
+	{
+		unscheduleUpdate();
+		Sequence* action = Sequence::create(DelayTime::create(2.0f), CallFuncN::create([&](Ref* pSender){
+			Director::getInstance()->replaceScene(PlayGame::createScene());
+		}) , nullptr);
+
+		this->runAction(action);
+	}
 }
 
 void SelectTeamScene::SelectTeamBtnCallback(Ref* pSender, Widget::TouchEventType type , int teamId)
@@ -119,6 +218,22 @@ void SelectTeamScene::SelectTeamBtnCallback(Ref* pSender, Widget::TouchEventType
 	case cocos2d::ui::Widget::TouchEventType::ENDED:
 	{
 
+		if (_player1ConnectedFlg == true) _allPlayer[0].status = true;
+		if (_player2ConnectedFlg == true) _allPlayer[1].status = true;
+
+		switch (teamId)
+		{
+		case 1:
+			_allPlayer[0].status = true;
+			_player1ConnectedFlg = true;
+			break;
+		case 2:
+			_allPlayer[1].status = true;
+			_player2ConnectedFlg = true;
+		default:
+			break;
+		}
+
 		// Update thong tin cua database khi player connect
 
 		//======================================================
@@ -126,20 +241,9 @@ void SelectTeamScene::SelectTeamBtnCallback(Ref* pSender, Widget::TouchEventType
 
 		auto client = NodeServer::getInstance()->getClient();
 
-		switch (teamId)
-		{
-		case 1:
-			_allPlayer[0].status = true;
-			break;
-		case 2:
-			_allPlayer[1].status = true;
-		default:
-			break;
-		}
-
 		std::stringstream connectMsg;
 
-		connectMsg << "[{\"player_id\":" << _allPlayer[0].player_id << " , \"status\":" << _allPlayer[0].status 
+		connectMsg << "[{\"player_id\":" << _allPlayer[0].player_id << " , \"status\":" << _allPlayer[0].status
 			<< "} , {\"player_id\":" << _allPlayer[1].player_id << " , \"status\":" << _allPlayer[1].status << "}]";
 
 		client->emit("player_connect", connectMsg.str());
@@ -148,9 +252,7 @@ void SelectTeamScene::SelectTeamBtnCallback(Ref* pSender, Widget::TouchEventType
 
 			// Thuc hien viec lay du lieu ban dau cua database
 			log("Data : %s", data.c_str());
-
 			rapidjson::Document document;
-
 			document.Parse<0>(data.c_str());
 
 			bool error = document.HasParseError();
@@ -191,18 +293,14 @@ void SelectTeamScene::SelectTeamBtnCallback(Ref* pSender, Widget::TouchEventType
 
 
 			if (_allPlayer[0].player_id == 1 && (_allPlayer[0].status == true)){
-				_teamABtn->loadTextureNormal("player1_cnt.png");
-				_teamABtn->setTouchEnabled(false);
+				_player1ConnectedFlg = true;
 			}
 
 			if (_allPlayer[1].player_id == 2 && (_allPlayer[1].status == true)){
-				_teamBBtn->loadTextureNormal("player2_cnt.png");
-				_teamBBtn->setTouchEnabled(false);
+				_player2ConnectedFlg = true;
 			}
+
 		});
-
-
-		
 
 
 		break;
@@ -212,10 +310,5 @@ void SelectTeamScene::SelectTeamBtnCallback(Ref* pSender, Widget::TouchEventType
 	default:
 		break;
 	}
-}
-
-void SelectTeamScene::connectedCallback(SIOClient* client, const string& data)
-{
-
 }
 
