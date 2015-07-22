@@ -24,6 +24,7 @@ public:
 private:
 
 	void startGameCallback(Ref* pSender , Widget::TouchEventType type);
+	void testBtnCallback(Ref* pSender, Widget::TouchEventType type);
 
 };
 

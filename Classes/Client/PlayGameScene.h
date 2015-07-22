@@ -22,9 +22,9 @@ using namespace std;
 class PlayGame : public Layer
 {
 public:
-	static Scene* createScene();
-	virtual bool init();
-	static PlayGame* create(); // tuong tu ham CC_FUNC(PlayGame);
+	static Scene* createScene(int teamId);
+	virtual bool init(int teamId);
+	static PlayGame* create(int teamId); // tuong tu ham CC_FUNC(PlayGame);
 
 	Size _visibleSize;
 
@@ -34,11 +34,21 @@ public:
 
 	void onEnter();
 
-private:
-	Sprite* _ball;
+public :
+	int _teamId;
+
+	SIOClient* _client;
+
 	Sprite* _paddle1;
 	Sprite* _paddle2;
+	Sprite* _ball;
+
+private:
+	
+	
 	Node* _border;
+	Node* _wallDie1;
+	Node* _wallDie2;
 
 	Label* _player1Score;
 	Label* _player2Score;
@@ -56,6 +66,9 @@ private:
 	Sprite* createPaddle();
 	Label* createScoreLabel();
 
+
+	void playGameContent();
+	void update(float dt);
 
 	bool onContactBegin(PhysicsContact& contact);
 

@@ -52,6 +52,16 @@ bool StartGameScene::init()
 	this->addChild(startGameBtn);
 
 
+	auto testBtn = Button::create();
+	testBtn->loadTextureNormal("test.png");
+	testBtn->setTouchEnabled(true);
+	testBtn->addTouchEventListener(CC_CALLBACK_2(StartGameScene::testBtnCallback, this));
+	testBtn->setPosition(Vec2(200, 200));
+
+	this->addChild(testBtn);
+
+
+
 	auto client = NodeServer::getInstance();
 
 
@@ -127,6 +137,38 @@ void StartGameScene::startGameCallback(Ref* pSender , Widget::TouchEventType typ
 		});
 
 		
+		break;
+	}
+	case cocos2d::ui::Widget::TouchEventType::CANCELED:
+		break;
+	default:
+		break;
+	}
+}
+
+
+void StartGameScene::testBtnCallback(Ref* pSender, Widget::TouchEventType type){
+	switch (type)
+	{
+	case cocos2d::ui::Widget::TouchEventType::BEGAN:
+		break;
+	case cocos2d::ui::Widget::TouchEventType::MOVED:
+		break;
+	case cocos2d::ui::Widget::TouchEventType::ENDED:
+	{
+		//======================================================
+		// Khoi tao du lieu test
+
+		auto client = NodeServer::getInstance()->getClient();
+
+		std::stringstream connectMsg;
+
+		connectMsg << "[{\"player_id\":" << 1 << " , \"status\":" << true << ", \"score\":" << 0
+			<< "} , {\"player_id\":" << 2 << " , \"status\":" <<true << " , \"score\":"<< 0  << "}]";
+
+		client->emit("player_test", connectMsg.str());
+
+		Director::getInstance()->replaceScene(TransitionMoveInR::create(0.5f , PlayGame::createScene(1)));
 		break;
 	}
 	case cocos2d::ui::Widget::TouchEventType::CANCELED:

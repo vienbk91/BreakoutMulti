@@ -38,8 +38,11 @@ public:
 	bool _player1ConnectedFlg = false;
 	bool _player2ConnectedFlg = false;
 
+	CC_SYNTHESIZE(int, _teamId, TeamId);
 
 private:
+
+	
 
 	Button* _teamABtn;
 	Button* _teamBBtn;

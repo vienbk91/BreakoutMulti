@@ -32,7 +32,8 @@ var Schema = Mongoose.Schema;
 
 var RoomSchema = new Schema({
 	player_id : Number ,
-	status : Boolean
+	status : Boolean ,
+	score : Number
 });
 
 /**
@@ -91,20 +92,58 @@ io.sockets.on('connection' , function(socket){
 				
 			});
 		}
-		
-		console.log('RoomPlayer1 : ' , roomPlayer[0]['player_id'] , ' va ' , roomPlayer[0]['status']);
-		console.log('RoomPlayer2 : ' , roomPlayer[1]['player_id'] , ' va ' , roomPlayer[1]['status']);
 	});
 
+	// Thuc hien check trang thai
 	socket.on('realtime_check' , function(data){
 		socket.emit('realtime_check_end' , {room : roomPlayer});
 	});
 
+	// Thuc hien lay lai du lieu khi chuyen qua man hinh playScene
 	socket.on('get_data_first' , function(data){
 		console.log('Message: ' , data);
 		socket.emit('get_data_first_end' , {room : roomPlayer});
 	});
+	
+
+	// Thuc hien khoi tao du lieu test
+	socket.on('player_test' , function(data){
+		var dt = JSON.parse(data);
 		
+		for(var i = 0 ; i < 2 ; i++){
+			if(dt[i]['status'] == 1){
+				dt[i]['status'] = true;
+				
+			}else{
+				dt[i]['status'] = false;
+			}
+			
+			// Thay doi gia tri cua bien toan cuc
+			roomPlayer[i]['status'] = dt[i]['status']; 
+			
+			updateDataRoom(dt[i] , dt[i]['status'] , function(){
+				console.log('Luu du lieu test vao mongo thanh cong');
+			});
+		}
+	});
+
+
+
+	socket.on('send_position_player1' , function(data){
+		var dt = JSON.parse(data);
+		socket.broadcast.emit('send_position_player1_end' ,  dt);
+	});
+
+	socket.on('send_position_player2' , function(data){
+		var dt = JSON.parse(data);
+		socket.broadcast.emit('send_position_player2_end' , dt);
+
+	});
+
+
+
+
+
 });
 
 
@@ -148,8 +187,8 @@ function getRoomData(data , handle){
 
 function createRoom(onCreate){
 	
-	var user1 = new Room({player_id : 1 , status : false});
-	var user2 = new Room({player_id : 2 , status : false});
+	var user1 = new Room({player_id : 1 , status : false , score : 0 });
+	var user2 = new Room({player_id : 2 , status : false , score : 0 });
 	
 	Room.create([user1 , user2] , function(error){
 		if(error){

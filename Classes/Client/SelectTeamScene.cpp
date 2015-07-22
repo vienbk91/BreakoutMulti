@@ -124,20 +124,12 @@ void SelectTeamScene::realtimeCheckData()
 	client->emit("realtime_check", connectMsg);
 	client->on("realtime_check_end", [&](SIOClient* client, const std::string& data){
 
-		log("Callback tai day");
-
 		// Thuc hien viec lay du lieu ban dau cua database
-		log("Data : %s", data.c_str());
-
 		rapidjson::Document document;
 
 		document.Parse<0>(data.c_str());
-
 		bool error = document.HasParseError();
-		if (error){
-			log("//=============Parse Error!!!");
-			return;
-		}
+		if (error){ log("//=============Parse Error!!!"); return; }
 
 		// Lay data
 		if (document.IsObject() == true)
@@ -146,7 +138,6 @@ void SelectTeamScene::realtimeCheckData()
 			if (document.HasMember("room"))
 			{
 				// Lay gia tri cua truong value
-				log("=====================================");
 				const rapidjson::Value& obj = document["room"];
 				rapidjson::SizeType num = obj.Size();
 
@@ -156,6 +147,7 @@ void SelectTeamScene::realtimeCheckData()
 
 					temp.player_id = obj[i]["player_id"].GetInt();
 					temp.status = obj[i]["status"].GetBool();
+					temp.score = obj[i]["score"].GetInt();
 
 					if (temp.player_id == 1){
 						_player1ConnectedFlg = temp.status;
@@ -180,7 +172,6 @@ void SelectTeamScene::update(float dt)
 
 	if (_player1ConnectedFlg == true)
 	{
-		log("_player1ConnectedFlg");
 		_allPlayer[0].status = true;
 		_teamABtn->loadTextureNormal("player1_cnt.png");
 		_teamABtn->setTouchEnabled(false);
@@ -188,7 +179,6 @@ void SelectTeamScene::update(float dt)
 
 	if (_player2ConnectedFlg == true)
 	{
-		log("_player2ConnectedFlg");
 		_allPlayer[1].status = true;
 		_teamBBtn->loadTextureNormal("player2_cnt.png");
 		_teamBBtn->setTouchEnabled(false);
@@ -198,7 +188,7 @@ void SelectTeamScene::update(float dt)
 	{
 		unscheduleUpdate();
 		Sequence* action = Sequence::create(DelayTime::create(2.0f), CallFuncN::create([&](Ref* pSender){
-			Director::getInstance()->replaceScene(PlayGame::createScene());
+			Director::getInstance()->replaceScene(PlayGame::createScene(getTeamId()));
 		}) , nullptr);
 
 		this->runAction(action);
@@ -208,6 +198,7 @@ void SelectTeamScene::update(float dt)
 void SelectTeamScene::SelectTeamBtnCallback(Ref* pSender, Widget::TouchEventType type , int teamId)
 {
 
+	
 
 	switch (type)
 	{
@@ -217,6 +208,8 @@ void SelectTeamScene::SelectTeamBtnCallback(Ref* pSender, Widget::TouchEventType
 		break;
 	case cocos2d::ui::Widget::TouchEventType::ENDED:
 	{
+
+		setTeamId(teamId);
 
 		if (_player1ConnectedFlg == true) _allPlayer[0].status = true;
 		if (_player2ConnectedFlg == true) _allPlayer[1].status = true;
@@ -243,8 +236,8 @@ void SelectTeamScene::SelectTeamBtnCallback(Ref* pSender, Widget::TouchEventType
 
 		std::stringstream connectMsg;
 
-		connectMsg << "[{\"player_id\":" << _allPlayer[0].player_id << " , \"status\":" << _allPlayer[0].status
-			<< "} , {\"player_id\":" << _allPlayer[1].player_id << " , \"status\":" << _allPlayer[1].status << "}]";
+		connectMsg << "[{\"player_id\":" << _allPlayer[0].player_id << " , \"status\":" << _allPlayer[0].status << " , \"score\":" << _allPlayer[0].score
+			<< "} , {\"player_id\":" << _allPlayer[1].player_id << " , \"status\":" << _allPlayer[1].status << " , \"score\":" << _allPlayer[0].score << "}]";
 
 		client->emit("player_connect", connectMsg.str());
 
@@ -257,7 +250,7 @@ void SelectTeamScene::SelectTeamBtnCallback(Ref* pSender, Widget::TouchEventType
 
 			bool error = document.HasParseError();
 			if (error){
-				log("//=============Parse Error!!!");
+				log("//=========================================>> Parse Error!!!");
 				return;
 			}
 
@@ -278,6 +271,7 @@ void SelectTeamScene::SelectTeamBtnCallback(Ref* pSender, Widget::TouchEventType
 
 						temp.player_id = obj[i]["player_id"].GetInt();
 						temp.status = obj[i]["status"].GetBool();
+						temp.score = obj[i]["score"].GetInt();
 
 						log("PlayerId : %d", obj[i]["player_id"].GetInt());
 
@@ -287,10 +281,6 @@ void SelectTeamScene::SelectTeamBtnCallback(Ref* pSender, Widget::TouchEventType
 					}
 				}
 			}
-
-			log("Player1 : Id = %d , status = %d ", _allPlayer[0].player_id, _allPlayer[0].status);
-			log("Player2 : Id = %d , status = %d ", _allPlayer[1].player_id, _allPlayer[1].status);
-
 
 			if (_allPlayer[0].player_id == 1 && (_allPlayer[0].status == true)){
 				_player1ConnectedFlg = true;
