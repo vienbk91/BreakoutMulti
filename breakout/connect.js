@@ -32,8 +32,7 @@ var Schema = Mongoose.Schema;
 
 var RoomSchema = new Schema({
 	player_id : Number ,
-	status : Boolean ,
-	score : Number
+	status : Boolean
 });
 
 /**
@@ -99,50 +98,24 @@ io.sockets.on('connection' , function(socket){
 		socket.emit('realtime_check_end' , {room : roomPlayer});
 	});
 
-	// Thuc hien lay lai du lieu khi chuyen qua man hinh playScene
-	socket.on('get_data_first' , function(data){
-		console.log('Message: ' , data);
-		socket.emit('get_data_first_end' , {room : roomPlayer});
-	});
-	
 
-	// Thuc hien khoi tao du lieu test
-	socket.on('player_test' , function(data){
+	// Thuc hien update vi tri cua player cho cac player khac
+	socket.on('send_position_player' , function(data){
+		var dt = JSON.parse(data);
+		socket.broadcast.emit('send_position_player_end' , dt);
+
+	});
+
+
+	socket.on('send_score' , function(data){
+		// Nhan score tu client
+		//console.log('Score : ' , data);
+		
+
 		var dt = JSON.parse(data);
 		
-		for(var i = 0 ; i < 2 ; i++){
-			if(dt[i]['status'] == 1){
-				dt[i]['status'] = true;
-				
-			}else{
-				dt[i]['status'] = false;
-			}
-			
-			// Thay doi gia tri cua bien toan cuc
-			roomPlayer[i]['status'] = dt[i]['status']; 
-			
-			updateDataRoom(dt[i] , dt[i]['status'] , function(){
-				console.log('Luu du lieu test vao mongo thanh cong');
-			});
-		}
+		socket.broadcast.emit('send_score_end' , dt);
 	});
-
-
-
-	socket.on('send_position_player1' , function(data){
-		var dt = JSON.parse(data);
-		socket.broadcast.emit('send_position_player1_end' ,  dt);
-	});
-
-	socket.on('send_position_player2' , function(data){
-		var dt = JSON.parse(data);
-		socket.broadcast.emit('send_position_player2_end' , dt);
-
-	});
-
-
-
-
 
 });
 
@@ -187,8 +160,8 @@ function getRoomData(data , handle){
 
 function createRoom(onCreate){
 	
-	var user1 = new Room({player_id : 1 , status : false , score : 0 });
-	var user2 = new Room({player_id : 2 , status : false , score : 0 });
+	var user1 = new Room({player_id : 1 , status : false });
+	var user2 = new Room({player_id : 2 , status : false });
 	
 	Room.create([user1 , user2] , function(error){
 		if(error){

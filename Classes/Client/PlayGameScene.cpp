@@ -94,7 +94,7 @@ bool PlayGame::init(int teamId)
 	_eventDispatcher->addEventListenerWithSceneGraphPriority(contactListener, this);
 
 
-	this->scheduleUpdate();
+	
 
 
 	return true;
@@ -107,79 +107,14 @@ void PlayGame::onEnter()
 
 	// Lay du lieu dau vao
 
-	auto sequence = Sequence::create(CallFuncN::create([&](Ref* pSender){
-		getFirstData();
-	}), DelayTime::create(1.0f) , CallFuncN::create([&](Ref* pSender){
-		// Tao UI game
-		createContent();
-		createGameBorder();
+	createContent();
+	createGameBorder();
 
-		playGameContent();
+	playGameContent();
 
-	}), nullptr);
-
-	this->runAction(sequence);
+	this->scheduleUpdate();
 
 }
-
-/*
-Thuc hien lay du lieu tu server
-*/
-void PlayGame::getFirstData()
-{
-	// Create connect with mongodb
-
-	_client->emit("get_data_first", "Get Data First PlayGame");
-	_client->on("get_data_first_end", [&](SIOClient* client, const std::string& data){
-
-		// Thuc hien viec lay du lieu hien tai cua database
-		log("Data First : %s", data.c_str());
-
-		rapidjson::Document document;
-
-		document.Parse<0>(data.c_str());
-
-		bool error = document.HasParseError();
-		if (error){
-			log("//=============Parse Error!!!");
-			return;
-		}
-
-		// Lay data tu database
-		if (document.IsObject() == true)
-		{
-			// Neu ton tai truong co key = value
-			if (document.HasMember("room"))
-			{
-				// Lay gia tri cua truong value
-				log("=====================================");
-				const rapidjson::Value& obj = document["room"];
-				rapidjson::SizeType num = obj.Size();
-
-				for (rapidjson::SizeType i = 0; i < num; i++)
-				{
-					RoomPlayer temp;
-
-					temp.player_id = obj[i]["player_id"].GetInt();
-					temp.status = obj[i]["status"].GetBool();
-					temp.score = obj[i]["score"].GetInt();
-
-					log("Player%d id : %d ", i, obj[i]["player_id"].GetInt());
-
-					_allPlayers.push_back(temp);
-
-					log("AAAAA : %d", _allPlayers[i].player_id);
-
-				}
-
-
-			}
-		}
-
-	});
-
-}
-
 
 /*
 Khoi tao noi dung game
@@ -210,8 +145,23 @@ void PlayGame::createContent()
 	_paddle2->setPosition(Vec2(_visibleSize.width / 2, _visibleSize.height - HEIGHT_OFFSET - offset ));
 
 
-	// Create status 
-	Label* connectLb1 = Label::create("Player1 : ", "fonts/arial.ttf", 30);
+	// Create socre label
+	Label* connectLb1;
+	Label* connectLb2;
+
+	if (_teamId == 1){
+		connectLb1 = Label::create("Player1 : ", "fonts/arial.ttf", 30);
+		connectLb2 = Label::create("Player2 : ", "fonts/arial.ttf", 30);
+	}
+	else
+	{
+		connectLb1 = Label::create("Player2 : ", "fonts/arial.ttf", 30);
+		connectLb2 = Label::create("Player1 : ", "fonts/arial.ttf", 30);
+	}
+
+	//=========================================================================
+	// Score Label 1
+
 	connectLb1->setColor(Color3B::WHITE);
 	connectLb1->setHorizontalAlignment(TextHAlignment::CENTER);
 	connectLb1->setPosition(Vec2(_visibleSize.width/2 - 20 - connectLb1->getContentSize().width/2 , HEIGHT_OFFSET/2));
@@ -220,9 +170,11 @@ void PlayGame::createContent()
 
 	_player1Score = createScoreLabel();
 	_player1Score->setPosition(connectLb1->getPosition() + Vec2(connectLb1->getContentSize().width / 2 + 20 + 100, 0));
-	_player1Score->setString("0");
+	_player1Score->setString("20");
 	
-	Label* connectLb2 = Label::create("Player2 : ", "fonts/arial.ttf", 30);
+	//=========================================================================
+	// Score Label 2
+
 	connectLb2->setColor(Color3B::WHITE);
 	connectLb2->setHorizontalAlignment(TextHAlignment::CENTER);
 	connectLb2->setPosition(Vec2(_visibleSize.width / 2 - 20 - connectLb2->getContentSize().width / 2, _visibleSize.height - HEIGHT_OFFSET / 2));
@@ -231,8 +183,11 @@ void PlayGame::createContent()
 
 	_player2Score = createScoreLabel();
 	_player2Score->setPosition(connectLb2->getPosition() + Vec2(connectLb2->getContentSize().width / 2 + 20 + 100, 0));
-	_player2Score->setString("0");
+	_player2Score->setString("20");
 
+
+	_score1 = 5;
+	_score2 = 5;
 
 	log("//======================>>>> End create content UI");
 
@@ -246,10 +201,13 @@ void PlayGame::createContent()
 void PlayGame::playGameContent()
 {
 	// Tao chuyen dong cua bong
+
+	// Bong chi chuyen dong tai client player 1
 	if (_ball->getPhysicsBody() != nullptr){
 		log("Thuc hien di chuyen ball");
 		Vect force = Vect(1010000.0f, 1010000.0f);
-		//_ball->getPhysicsBody()->applyImpulse(force);
+		_ball->getPhysicsBody()->applyImpulse(force);
+
 	}
 	else{
 		log("Chua khoi tao ball");
@@ -260,49 +218,25 @@ void PlayGame::playGameContent()
 
 void PlayGame::update(float dt)
 {
-	if (_teamId == 1) 
-	{
-		_client->on("send_position_player2_end", [&](SIOClient* client , const std::string& data ){
-			// Thuc hien viec lay du lieu hien tai cua database
-			log("Player1 Position : %s ", data.c_str());
-			rapidjson::Document document;
-			document.Parse<0>(data.c_str());
+	//==================================================================================
+	// Lay vi tri cua client con lai va update vi tri cho _paddle2
+	_client->on("send_position_player_end", [&](SIOClient* client, const std::string& data){
+		log("Player1 Position : %s ", data.c_str()); // {"x" : 123.45} -> Dang json nhan duoc
+		rapidjson::Document document;
+		document.Parse<0>(data.c_str());
 
-			bool error = document.HasParseError();
-			if (error){
-				log("//=============Parse Error!!!");
-				return;
-			}
+		bool error = document.HasParseError();
+		if (error){
+			log("//=============Parse Error!!!");
+			return;
+		}
 
-			float x = (float)(document["x"].GetDouble());
-			_paddle2->setPositionX(x);
+		float x = (float)(document["x"].GetDouble());
+		_paddle2->setPositionX(x);
 
-
-		});
-	}
-	if (_teamId == 2)
-	{
-		_client->on("send_position_player1_end", [&](SIOClient* client, const std::string& data){
-			log("Player1 Position : %s", data.c_str());
-
-			// Thuc hien viec lay du lieu hien tai cua database
-			rapidjson::Document document;
-			document.Parse<0>(data.c_str());
-
-			bool error = document.HasParseError();
-			if (error){
-				log("//=============Parse Error!!!");
-				return;
-			}
-
-			float x = (float)(document["x"].GetDouble());
-			_paddle1->setPositionX(x);
-
-		});
-	}
+	});
 
 }
-
 
 //=======================================================================================
 //=======================================================================================
@@ -459,37 +393,22 @@ void PlayGame::onTouchMoved(Touch* touch, Event* event)
 {
 	Vec2 touchPoint = touch->getLocation();
 
-	if (_teamId == 1) {
 
-
-		if (_paddle1->getBoundingBox().containsPoint(touchPoint)){
-			_paddle1->setPositionX(touchPoint.x);
-		}
-
-		// Gui du lieu toa do cua player len server
-
-		std::stringstream pos1;
-		pos1 << "{\"x\":" << _paddle1->getPositionX() << "}";
-		_client->emit("send_position_player1", pos1.str());
-		log("Gui vi tri cua player 1 len server");
-
+	/*
+	Theo nguyen ly thuyet ke UI thi player1 hay player2 thi deu o duoi - tung ung la _paddle1
+	Voi player1: _paddle1 la player1 , _paddle2 la player2
+	Voi player2: _paddle1 la player2 , _paddle2 la player1
+	*/
+	if (_paddle1->getBoundingBox().containsPoint(touchPoint)){
+		_paddle1->setPositionX(touchPoint.x);
 	}
-	
-	if (_teamId == 2) {
 
-		if (_paddle2->getBoundingBox().containsPoint(touchPoint)){
-			_paddle2->setPositionX(touchPoint.x);
-		}
+	// Gui du lieu toa do cua _paddle1 len server
+	// Client tuong ung se gui vi tri cua minh len server va server se gui lai cho client kia
+	std::stringstream pos;
+	pos << "{\"x\":" << _paddle1->getPositionX() << "}";
+	_client->emit("send_position_player", pos.str());
 
-		// Gui du lieu toa do cua player len server
-
-		std::stringstream pos2;
-		pos2 << "{\"x\":" << _paddle2->getPositionX() << "}";
-		_client->emit("send_position_player2", pos2.str());
-		log("Gui vi tri cua layer2 len server");
-
-	}
-	
 }
 
 void PlayGame::onTouchEnded(Touch* touch, Event* event)
@@ -514,18 +433,91 @@ bool PlayGame::onContactBegin(PhysicsContact& contact)
 
 	if ((tagA == BALL_TAG && tagB == WALL_DIE_TAG_1) || (tagA == WALL_DIE_TAG_1 && tagB == BALL_TAG))
 	{
-		//log("Player1 mat diem");
-		// Tai day se xu ly hien thi diem
+		_score1--;
 
 	}
 
 	if ((tagA == BALL_TAG && tagB == WALL_DIE_TAG_2) || (tagA == WALL_DIE_TAG_2 && tagB == BALL_TAG))
 	{
-		//log("Player2 mat diem");
-		// Tai day se xu ly hien thi diem
-
+		_score2--;
 	}
 
+	if (_teamId == 1)
+	{
+		//===========================================================================================
+		// Thuc hien gui diem len server va cap nhat diem cho player khac
+
+		std::stringstream score;
+
+		score << "{\"score1\":" << _score1 << " , \"score2\": " << _score2 << "}";
+		_client->emit("send_score", score.str());
+
+		int loseTeam;
+
+		if (_score1 == 0 || _score2 == 0)
+		{
+
+			if (_score1 == 0)
+			{
+				loseTeam = 1;
+			}
+			else{
+				loseTeam = 2;
+			}
+
+			//===========================================================================================
+			// Thuc hien dung game va chuyen qua man hinh game over
+			Director::getInstance()->replaceScene(GameOverScene::createScene(loseTeam));
+		}
+		else
+		{
+			_player1Score->setString(String::createWithFormat("%d", _score1)->getCString());
+			_player2Score->setString(String::createWithFormat("%d", _score2)->getCString());
+		}
+
+	} else {
+
+		_client->on("send_score_end", [&](SIOClient* client , const std::string& data){
+			log("Score: %s ", data.c_str());
+
+			rapidjson::Document document;
+			document.Parse<0>(data.c_str());
+
+			bool error = document.HasParseError();
+			if (error){
+				log("//=============Parse Error!!!");
+				return;
+			}
+
+			int score1 = document["score1"].GetInt();
+			int score2 = document["score2"].GetInt();
+
+			int loseTeam;
+
+			if (score1 == 0 || score2 == 0)
+			{
+
+				if (_score1 == 0)
+				{
+					loseTeam = 1;
+				}
+				else{
+					loseTeam = 2;
+				}
+
+
+				//===========================================================================================
+				// Thuc hien dung game va chuyen qua man hinh game over
+				Director::getInstance()->replaceScene(GameOverScene::createScene(loseTeam));
+			}
+			else
+			{
+				_player2Score->setString(String::createWithFormat("%d", score1)->getCString());
+				_player1Score->setString(String::createWithFormat("%d", score2)->getCString());
+			}
+
+		});
+	}
 
 
 	return true;

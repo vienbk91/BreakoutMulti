@@ -37,7 +37,6 @@ struct RoomPlayer
 {
 	int player_id;
     bool status;
-	int score;
 };
 
 

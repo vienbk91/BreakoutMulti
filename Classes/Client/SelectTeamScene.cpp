@@ -147,8 +147,7 @@ void SelectTeamScene::realtimeCheckData()
 
 					temp.player_id = obj[i]["player_id"].GetInt();
 					temp.status = obj[i]["status"].GetBool();
-					temp.score = obj[i]["score"].GetInt();
-
+					
 					if (temp.player_id == 1){
 						_player1ConnectedFlg = temp.status;
 					}
@@ -236,8 +235,8 @@ void SelectTeamScene::SelectTeamBtnCallback(Ref* pSender, Widget::TouchEventType
 
 		std::stringstream connectMsg;
 
-		connectMsg << "[{\"player_id\":" << _allPlayer[0].player_id << " , \"status\":" << _allPlayer[0].status << " , \"score\":" << _allPlayer[0].score
-			<< "} , {\"player_id\":" << _allPlayer[1].player_id << " , \"status\":" << _allPlayer[1].status << " , \"score\":" << _allPlayer[0].score << "}]";
+		connectMsg << "[{\"player_id\":" << _allPlayer[0].player_id << " , \"status\":" << _allPlayer[0].status << "} , "
+		           << "{\"player_id\":" << _allPlayer[1].player_id << " , \"status\":" << _allPlayer[1].status << "}]";
 
 		client->emit("player_connect", connectMsg.str());
 
@@ -271,7 +270,6 @@ void SelectTeamScene::SelectTeamBtnCallback(Ref* pSender, Widget::TouchEventType
 
 						temp.player_id = obj[i]["player_id"].GetInt();
 						temp.status = obj[i]["status"].GetBool();
-						temp.score = obj[i]["score"].GetInt();
 
 						log("PlayerId : %d", obj[i]["player_id"].GetInt());
 
@@ -291,6 +289,16 @@ void SelectTeamScene::SelectTeamBtnCallback(Ref* pSender, Widget::TouchEventType
 			}
 
 		});
+
+
+		if (teamId == 1){
+			_teamBBtn->setTouchEnabled(false);
+		}
+		else
+		{
+			_teamABtn->setTouchEnabled(false);
+		}
+
 
 
 		break;

@@ -13,6 +13,7 @@
 #include "SelectTeamScene.h"
 #include "Define.h"
 #include "Server/NodeJSServer.h"
+#include "GameOverScene.h"
 
 
 USING_NS_CC;
@@ -45,6 +46,8 @@ public :
 
 private:
 	
+	int _score1;
+	int _score2;
 	
 	Node* _border;
 	Node* _wallDie1;
@@ -54,8 +57,6 @@ private:
 	Label* _player2Score;
 
 	PhysicsWorld* _mWorld;
-
-	void getFirstData();
 
 	void setLayerPhysicsWorld(PhysicsWorld* world);
 
