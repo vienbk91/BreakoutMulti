@@ -170,7 +170,7 @@ void PlayGame::createContent()
 
 	_player1Score = createScoreLabel();
 	_player1Score->setPosition(connectLb1->getPosition() + Vec2(connectLb1->getContentSize().width / 2 + 20 + 100, 0));
-	_player1Score->setString("20");
+	_player1Score->setString("5");
 	
 	//=========================================================================
 	// Score Label 2
@@ -183,7 +183,7 @@ void PlayGame::createContent()
 
 	_player2Score = createScoreLabel();
 	_player2Score->setPosition(connectLb2->getPosition() + Vec2(connectLb2->getContentSize().width / 2 + 20 + 100, 0));
-	_player2Score->setString("20");
+	_player2Score->setString("5");
 
 
 	_score1 = 5;
@@ -205,8 +205,76 @@ void PlayGame::playGameContent()
 	// Bong chi chuyen dong tai client player 1
 	if (_ball->getPhysicsBody() != nullptr){
 		log("Thuc hien di chuyen ball");
-		Vect force = Vect(1010000.0f, 1010000.0f);
-		_ball->getPhysicsBody()->applyImpulse(force);
+
+		//float offset = 1010000.0f; // Luc day ball
+		float offset = 1000000.0f;
+
+		
+		// Thuc hien gui vi tri va luc force cua ball len server
+		std::stringstream msg;
+		msg << "{\"ball_x\" : " << _ball->getPositionX() << " , \"ball_y\" : " << _ball->getPositionY() << " , \"offset_force\" : " << offset << " }";
+
+		_client->emit("send_ball_info", msg.str());
+
+
+		
+
+		if (_teamId == 1)
+		{
+			_client->on("send_ball_info_end", [&](SIOClient* client, const std::string& data){
+				log("Thong tin ball ban dau: %s ", data.c_str());
+
+				rapidjson::Document document;
+				document.Parse<0>(data.c_str());
+
+				bool error = document.HasParseError();
+				if (error){
+					log("//=============Parse Error!!!");
+					return;
+				}
+
+				float ball_x = (float)(document["ball_x"].GetDouble());
+				float ball_y = (float)(document["ball_y"].GetDouble());
+				float offset_force = (float)(document["offset_force"].GetDouble());
+				
+
+				// Thuc hien day ball theo 1 goc 45 do
+				log("Player 1 thiet lap vi tri cua ball");
+				Vect force1 = Vect(1.0f, 1.0f);
+				_ball->setPosition(Vec2(ball_x, ball_y));
+				_ball->getPhysicsBody()->applyImpulse(force1 * offset_force);
+
+			});
+		}
+
+
+		if (_teamId == 2)
+		{
+			_client->on("send_ball_info_end", [&](SIOClient* client, const std::string& data){
+				log("Thong tin ball ban dau: %s ", data.c_str());
+
+				rapidjson::Document document;
+				document.Parse<0>(data.c_str());
+
+				bool error = document.HasParseError();
+				if (error){
+					log("//=============Parse Error!!!");
+					return;
+				}
+
+				float ball_x = (float)(document["ball_x"].GetDouble());
+				float ball_y = (float)(document["ball_y"].GetDouble());
+				float offset_force = (float)(document["offset_force"].GetDouble());
+
+
+				// Thuc hien day bong theo huong nguoc lai voi teamid = 1
+				log("Player2 thiet lap lai vi tri cua ball");
+				Vect force2 = Vect(-1.0f, -1.0f);
+				_ball->setPosition(Vec2(_visibleSize.width - ball_x, _visibleSize.height - ball_y));
+				_ball->getPhysicsBody()->applyImpulse(force2 * offset_force);
+
+			});
+		}
 
 	}
 	else{
@@ -220,6 +288,8 @@ void PlayGame::update(float dt)
 {
 	//==================================================================================
 	// Lay vi tri cua client con lai va update vi tri cho _paddle2
+	// Tuy nhien nen nho rang vi tri cua _paddle2 la hinh anh chieu cua _paddle1 qua diem trung tam man hinh
+	// Nhu vay neu x la toa do X cua _paddle1 thi (w-x) la toa doa X cua _paddle2
 	_client->on("send_position_player_end", [&](SIOClient* client, const std::string& data){
 		log("Player1 Position : %s ", data.c_str()); // {"x" : 123.45} -> Dang json nhan duoc
 		rapidjson::Document document;
@@ -232,9 +302,13 @@ void PlayGame::update(float dt)
 		}
 
 		float x = (float)(document["x"].GetDouble());
-		_paddle2->setPositionX(x);
+		_paddle2->setPositionX(_visibleSize.width - x);
 
 	});
+
+
+	
+
 
 }
 
@@ -405,9 +479,13 @@ void PlayGame::onTouchMoved(Touch* touch, Event* event)
 
 	// Gui du lieu toa do cua _paddle1 len server
 	// Client tuong ung se gui vi tri cua minh len server va server se gui lai cho client kia
-	std::stringstream pos;
-	pos << "{\"x\":" << _paddle1->getPositionX() << "}";
-	_client->emit("send_position_player", pos.str());
+	if (_score1 != 0 && _score2 != 0)
+	{
+		std::stringstream pos;
+		pos << "{\"x\":" << _paddle1->getPositionX() << "}";
+		_client->emit("send_position_player", pos.str());
+	}
+	
 
 }
 
@@ -442,6 +520,12 @@ bool PlayGame::onContactBegin(PhysicsContact& contact)
 		_score2--;
 	}
 
+	if (_score1 == 0 || _score2 == 0)
+	{
+		unscheduleUpdate();
+	}
+
+
 	if (_teamId == 1)
 	{
 		//===========================================================================================
@@ -467,6 +551,7 @@ bool PlayGame::onContactBegin(PhysicsContact& contact)
 
 			//===========================================================================================
 			// Thuc hien dung game va chuyen qua man hinh game over
+
 			Director::getInstance()->replaceScene(GameOverScene::createScene(loseTeam));
 		}
 		else
@@ -508,6 +593,7 @@ bool PlayGame::onContactBegin(PhysicsContact& contact)
 
 				//===========================================================================================
 				// Thuc hien dung game va chuyen qua man hinh game over
+
 				Director::getInstance()->replaceScene(GameOverScene::createScene(loseTeam));
 			}
 			else

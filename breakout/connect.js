@@ -107,11 +107,22 @@ io.sockets.on('connection' , function(socket){
 	});
 
 
+
+	socket.on('send_ball_info' , function(data){
+		// Nhan du lieu ball_if dau vao
+		console.log('Ball First Info : ' , data);
+
+		var dt = JSON.parse(data);
+		socket.emit('send_ball_info_end' , dt);
+
+	});
+
+
+
 	socket.on('send_score' , function(data){
 		// Nhan score tu client
 		//console.log('Score : ' , data);
-		
-
+		//
 		var dt = JSON.parse(data);
 		
 		socket.broadcast.emit('send_score_end' , dt);
